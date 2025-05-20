@@ -1,5 +1,4 @@
 import ru.leti.wise.task.graph.model.Graph;
-import ru.leti.wise.task.graph.model.Vertex;
 import ru.leti.wise.task.graph.util.FileLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
