@@ -1,0 +1,29 @@
+plugins {
+    id 'java'
+}
+
+group = 'ru.leti'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven {
+        url = uri("https://maven.pkg.github.com/Terross/wise-task-library")
+        credentials {
+            username = "dima38091@gmail.com"
+            password = "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"
+        }
+    }
+}
+
+dependencies {
+    testImplementation 'org.assertj:assertj-core:3.24.2'
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    implementation 'ru.leti:wise-task-library:1.0.7'
+}
+
+test {
+    useJUnitPlatform()
+}
