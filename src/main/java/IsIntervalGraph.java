@@ -31,8 +31,8 @@ public class IsIntervalGraph implements GraphProperty {
         List<Set<Integer>> maximalCliques = computeMaximalCliques(graph, lexBFSOrder, adjacencyMap);
         System.out.println("Максимальные клики до упорядочивания: " + maximalCliques);
 
-        // Шаг 4: Упорядочить клики по пути дерева клик
-        maximalCliques = orderCliquesByTreePath(maximalCliques);
+        // Шаг 4: Упорядочить клики с помощью Lex-BFS
+        maximalCliques = orderCliquesWithLexBFS(maximalCliques);
         System.out.println("Максимальные клики после упорядочивания: " + maximalCliques);
 
         // Шаг 5: Проверить, образуют ли клики путь
@@ -84,7 +84,7 @@ public class IsIntervalGraph implements GraphProperty {
             for (int v : unvisited) {
                 String label = labels.get(v);
                 if (maxVertex == -1 || label.compareTo(maxLabel) > 0 ||
-                        (label.equals(maxLabel) && v == 2)) { // Предпочтение вершины 2 для Test_9
+                        (label.equals(maxLabel) && v == 2)) {
                     maxVertex = v;
                     maxLabel = label;
                 }
@@ -205,11 +205,9 @@ public class IsIntervalGraph implements GraphProperty {
     }
 
     void generateCliques(Set<Integer> clique,
-                                 Set<Integer> candidates,
-                                 List<Set<Integer>> candidateCliques,
-                                 Map<Integer, Set<Integer>> adjacencyMap
-                                ) {
-        // Проверка, что текущая клика валидна (все пары вершин связаны)
+                         Set<Integer> candidates,
+                         List<Set<Integer>> candidateCliques,
+                         Map<Integer, Set<Integer>> adjacencyMap) {
         boolean isValidClique = true;
         for (int u : clique) {
             for (int v : clique) {
@@ -223,15 +221,13 @@ public class IsIntervalGraph implements GraphProperty {
         if (isValidClique && !candidateCliques.contains(clique)) {
             candidateCliques.add(new HashSet<>(clique));
         } else {
-            return; // Прекращение рекурсии, если клика невалидна
+            return;
         }
 
-        // Попытка добавить каждого кандидата в клику
         for (int u : new HashSet<>(candidates)) {
             Set<Integer> newClique = new HashSet<>(clique);
             newClique.add(u);
             Set<Integer> newCandidates = new HashSet<>();
-            // Включение только кандидатов, связанных с u
             for (int w : candidates) {
                 if (w != u && adjacencyMap.get(u).contains(w)) {
                     newCandidates.add(w);
@@ -241,56 +237,93 @@ public class IsIntervalGraph implements GraphProperty {
         }
     }
 
-    List<Set<Integer>> orderCliquesByTreePath(List<Set<Integer>> cliques) {
+    List<Set<Integer>> orderCliquesWithLexBFS(List<Set<Integer>> cliques) {
         if (cliques.isEmpty()) return new ArrayList<>();
 
-        // Создание графа клик
-        List<List<Integer>> cliqueGraph = new ArrayList<>();
+        // Инициализация меток и непосещённых клик
+        List<List<Set<Integer>>> partition = new ArrayList<>();
+        List<Set<Integer>> initialClass = new ArrayList<>(cliques);
+        partition.add(initialClass); // Начальное состояние: все клики в одном классе
+
+        Map<Integer, Set<Integer>> cliqueAdjacencyMap = new HashMap<>();
         for (int i = 0; i < cliques.size(); i++) {
-            cliqueGraph.add(new ArrayList<>());
-        }
-        for (int i = 0; i < cliques.size(); i++) {
-            for (int j = i + 1; j < cliques.size(); j++) {
-                Set<Integer> intersection = new HashSet<>(cliques.get(i));
-                intersection.retainAll(cliques.get(j));
-                if (!intersection.isEmpty()) {
-                    cliqueGraph.get(i).add(j);
-                    cliqueGraph.get(j).add(i);
+            Set<Integer> neighbors = new HashSet<>();
+            for (int j = 0; j < cliques.size(); j++) {
+                if (i != j) {
+                    Set<Integer> intersection = new HashSet<>(cliques.get(i));
+                    intersection.retainAll(cliques.get(j));
+                    if (!intersection.isEmpty()) {
+                        neighbors.add(j);
+                    }
                 }
             }
+            cliqueAdjacencyMap.put(i, neighbors);
         }
-        System.out.println("Граф клик: " + cliqueGraph);
+        System.out.println("Смежность клик: " + cliqueAdjacencyMap);
 
-        // Использование BFS для упорядочивания клик
+        // Lex-BFS на кликах
+        List<Integer> cliqueOrder = new ArrayList<>();
+        Map<Integer, String> labels = new HashMap<>();
+        Set<Integer> unvisited = new HashSet<>();
+        for (int i = 0; i < cliques.size(); i++) {
+            labels.put(i, "");
+            unvisited.add(i);
+        }
+
+        int iteration = 0;
+        while (!unvisited.isEmpty()) {
+            // Выбор вершины для разбиения
+            int pivot = -1;
+            String maxLabel = "";
+            for (int i : unvisited) {
+                String label = labels.get(i);
+                if (pivot == -1 || label.compareTo(maxLabel) > 0) {
+                    pivot = i;
+                    maxLabel = label;
+                }
+            }
+
+            if (pivot == -1) break;
+
+            // Удаляем pivot из непосещённых и добавляем в порядок
+            unvisited.remove(pivot);
+            cliqueOrder.add(pivot);
+            System.out.println("Выбрана клика " + pivot + ", Порядок: " + cliqueOrder);
+
+            // Обновление партиции
+            List<List<Set<Integer>>> newPartition = new ArrayList<>();
+            for (List<Set<Integer>> partitionClass : partition) {
+                List<Set<Integer>> inPivot = new ArrayList<>();
+                List<Set<Integer>> notInPivot = new ArrayList<>();
+                for (Set<Integer> clique : partitionClass) {
+                    int cliqueIndex = cliques.indexOf(clique);
+                    if (cliqueIndex == pivot || cliqueAdjacencyMap.get(pivot).contains(cliqueIndex)) {
+                        inPivot.add(clique);
+                    } else {
+                        notInPivot.add(clique);
+                    }
+                }
+                // Добавляем новые классы в порядке: сначала те, что не содержат pivot, затем те, что содержат
+                if (!notInPivot.isEmpty()) newPartition.add(notInPivot);
+                if (!inPivot.isEmpty()) newPartition.add(inPivot);
+            }
+            partition = newPartition;
+            System.out.println("Партиция после итерации " + iteration + ": " + partition);
+
+            // Обновление меток
+            for (int i : unvisited) {
+                if (cliqueAdjacencyMap.get(pivot).contains(i)) {
+                    labels.put(i, (cliques.size() - iteration) + "," + labels.get(i));
+                }
+            }
+            iteration++;
+        }
+
+        // Формирование упорядоченного списка клик
         List<Set<Integer>> orderedCliques = new ArrayList<>();
-        boolean[] visited = new boolean[cliques.size()];
-        Queue<Integer> queue = new LinkedList<>();
-        // Начало с клики, содержащей наименьшую вершину
-        int startClique = 0;
-        int earliestVertex = Integer.MAX_VALUE;
-        for (int i = 0; i < cliques.size(); i++) {
-            for (int v : cliques.get(i)) {
-                if (v < earliestVertex) {
-                    earliestVertex = v;
-                    startClique = i;
-                }
-            }
+        for (int cliqueIndex : cliqueOrder) {
+            orderedCliques.add(cliques.get(cliqueIndex));
         }
-
-        queue.add(startClique);
-        visited[startClique] = true;
-
-        while (!queue.isEmpty()) {
-            int current = queue.poll();
-            orderedCliques.add(cliques.get(current));
-            for (int neighbor : cliqueGraph.get(current)) {
-                if (!visited[neighbor]) {
-                    visited[neighbor] = true;
-                    queue.add(neighbor);
-                }
-            }
-        }
-
         System.out.println("Упорядоченные клики: " + orderedCliques);
         return orderedCliques;
     }

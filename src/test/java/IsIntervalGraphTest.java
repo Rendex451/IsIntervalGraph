@@ -209,50 +209,7 @@ class IntervalGraphCheckTest {
         );
     }
 
-    // === Тесты для orderCliquesByTreePath ===
-    @Test
-    void orderCliquesByTreePath_Test8_ReturnsSingleClique() throws Exception {
-        Graph graph = loadGraph("Test_8.json");
-        Map<Integer, Set<Integer>> adjacencyMap = check.buildAdjacencyMap(graph);
-        List<Integer> order = check.performLexBFS(graph, adjacencyMap);
-        List<Set<Integer>> cliques = check.computeMaximalCliques(graph, order, adjacencyMap);
-        List<Set<Integer>> orderedCliques = check.orderCliquesByTreePath(cliques);
 
-        assertThat(orderedCliques).hasSize(1);
-        assertThat(orderedCliques.get(0)).containsExactlyInAnyOrder(1, 2, 3);
-    }
-
-    @Test
-    void orderCliquesByTreePath_Test9_ReturnsOrderedCliques() throws Exception {
-        Graph graph = loadGraph("Test_9.json");
-        Map<Integer, Set<Integer>> adjacencyMap = check.buildAdjacencyMap(graph);
-        List<Integer> order = check.performLexBFS(graph, adjacencyMap);
-        List<Set<Integer>> cliques = check.computeMaximalCliques(graph, order, adjacencyMap);
-        List<Set<Integer>> orderedCliques = check.orderCliquesByTreePath(cliques);
-
-        assertThat(orderedCliques).hasSize(2);
-        assertThat(orderedCliques).contains(
-                new HashSet<>(Arrays.asList(1, 2, 4)),
-                new HashSet<>(Arrays.asList(2, 3, 4))
-        );
-    }
-
-    @Test
-    void orderCliquesByTreePath_Test10_ReturnsOrderedCliques() throws Exception {
-        Graph graph = loadGraph("Test_10.json");
-        Map<Integer, Set<Integer>> adjacencyMap = check.buildAdjacencyMap(graph);
-        List<Integer> order = check.performLexBFS(graph, adjacencyMap);
-        List<Set<Integer>> cliques = check.computeMaximalCliques(graph, order, adjacencyMap);
-        List<Set<Integer>> orderedCliques = check.orderCliquesByTreePath(cliques);
-
-        assertThat(orderedCliques).hasSize(4);
-        assertThat(orderedCliques).contains(
-                new HashSet<>(Arrays.asList(1, 2, 5)),
-                new HashSet<>(Arrays.asList(2, 3, 5)),
-                new HashSet<>(Arrays.asList(3, 4, 5)),
-                new HashSet<>(Arrays.asList(4, 6))
-        );
-    }
 
     // === Тесты на интервальность (run) ===
     @Test
@@ -312,6 +269,12 @@ class IntervalGraphCheckTest {
     @Test
     void run_Test10_ReturnsTrue() throws Exception {
         Graph graph = loadGraph("Test_10.json");
+        assertThat(check.run(graph)).isEqualTo(true);
+    }
+
+    @Test
+    void run_Test11_ReturnsTrue() throws Exception {
+        Graph graph = loadGraph("Test_11.json");
         assertThat(check.run(graph)).isEqualTo(true);
     }
 }
