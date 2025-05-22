@@ -41,26 +41,131 @@ public class IsIntervalGraph implements GraphProperty {
     }
 
     private boolean checkConsecutiveCliques(List<Set<Integer>> cliques, List<Vertex> vertices) {
+        // Получаем порядок клик, образующий путь
+        List<Integer> path = getCliquePathOrder(cliques);
+        if (path == null) {
+            System.out.println("Дерево клик не является путём");
+            return false;
+        }
+
+        // Проверка последовательности индексов клик для каждой вершины в порядке пути
         for (Vertex vertex : vertices) {
             int vId = vertex.getId();
             List<Integer> cliqueIndices = new ArrayList<>();
-            for (int i = 0; i < cliques.size(); i++) {
-                if (cliques.get(i).contains(vId)) {
+            for (int i = 0; i < path.size(); i++) {
+                if (cliques.get(path.get(i)).contains(vId)) {
                     cliqueIndices.add(i);
                 }
             }
-            if (!cliqueIndices.isEmpty()) {
-                int minIndex = Collections.min(cliqueIndices);
-                int maxIndex = Collections.max(cliqueIndices);
-                for (int i = minIndex; i <= maxIndex; i++) {
-                    if (!cliqueIndices.contains(i)) {
-                        System.out.println("Вершина " + vId + " имеет непоследовательные клики: " + cliqueIndices);
-                        return false;
-                    }
+            if (!isConsecutive(cliqueIndices)) {
+                System.out.println("Вершина " + vId + " имеет непоследовательные клики: " + cliqueIndices);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private boolean isConsecutive(List<Integer> list) {
+        if (list.isEmpty()) return true;
+        int min = Collections.min(list);
+        int max = Collections.max(list);
+        return max - min + 1 == list.size(); // Проверка, что нет пропусков
+    }
+
+    private List<Integer> getCliquePathOrder(List<Set<Integer>> cliques) {
+        if (cliques.size() <= 2) {
+            List<Integer> path = new ArrayList<>();
+            for (int i = 0; i < cliques.size(); i++) path.add(i);
+            return path;
+        }
+
+        // Строим граф пересечений клик
+        List<List<Integer>> intersectionGraph = new ArrayList<>();
+        for (int i = 0; i < cliques.size(); i++) {
+            intersectionGraph.add(new ArrayList<>());
+        }
+        for (int i = 0; i < cliques.size(); i++) {
+            for (int j = i + 1; j < cliques.size(); j++) {
+                Set<Integer> intersection = new HashSet<>(cliques.get(i));
+                intersection.retainAll(cliques.get(j));
+                if (!intersection.isEmpty()) {
+                    intersectionGraph.get(i).add(j);
+                    intersectionGraph.get(j).add(i);
                 }
             }
         }
-        return true;
+
+        // Проверяем связность графа с помощью BFS
+        boolean[] visited = new boolean[cliques.size()];
+        bfs(0, intersectionGraph, visited);
+        for (boolean v : visited) {
+            if (!v) return null; // Граф не связный
+        }
+
+        // Проверяем количество концов
+        int endpoints = 0;
+        for (List<Integer> neighbors : intersectionGraph) {
+            if (neighbors.size() == 1) endpoints++;
+        }
+        // Если нет концов и ≥ 3 клики, это цикл (например, треугольник)
+        if (endpoints == 0 && cliques.size() >= 3) return null;
+
+        // Пробуем построить путь с каждого возможного старта
+        for (int start = 0; start < cliques.size(); start++) {
+            List<Integer> path = new ArrayList<>();
+            visited = new boolean[cliques.size()];
+            path.add(start);
+            visited[start] = true;
+            int current = start;
+
+            while (path.size() < cliques.size()) {
+                boolean extended = false;
+                for (int next : intersectionGraph.get(current)) {
+                    if (!visited[next]) {
+                        path.add(next);
+                        visited[next] = true;
+                        current = next;
+                        extended = true;
+                        break;
+                    }
+                }
+                if (!extended) break;
+            }
+
+            if (path.size() == cliques.size()) {
+                boolean valid = true;
+                for (int i = 0; i < path.size() - 1; i++) {
+                    Set<Integer> intersection = new HashSet<>(cliques.get(path.get(i)));
+                    intersection.retainAll(cliques.get(path.get(i + 1)));
+                    if (intersection.isEmpty()) {
+                        valid = false;
+                        break;
+                    }
+                }
+                if (valid) return path;
+            }
+        }
+
+        return null; // Нет подходящего пути
+    }
+    private boolean isCliqueTreePath(List<Set<Integer>> cliques) {
+        return getCliquePathOrder(cliques) != null;
+    }
+
+    private void bfs(int start, List<List<Integer>> graph, boolean[] visited) {
+        Queue<Integer> queue = new LinkedList<>();
+        queue.add(start);
+        visited[start] = true;
+        while (!queue.isEmpty()) {
+            int v = queue.poll();
+            for (int u : graph.get(v)) {
+                if (!visited[u]) {
+                    visited[u] = true;
+                    queue.add(u);
+                }
+            }
+        }
     }
 
     private List<Set<Integer>> computeMaximalCliques(Graph graph, List<Integer> order, Map<Integer, Set<Integer>> adjacencyMap) {
@@ -218,7 +323,7 @@ public class IsIntervalGraph implements GraphProperty {
         return set.containsAll(subset);
     }
 
-    List<Integer> performLexBFS(Graph graph, Map<Integer, Set<Integer>> adjacencyMap) {
+    private List<Integer> performLexBFS(Graph graph, Map<Integer, Set<Integer>> adjacencyMap) {
         List<Integer> order = new ArrayList<>();
         List<Vertex> vertices = graph.getVertexList();
         if (vertices.isEmpty()) {

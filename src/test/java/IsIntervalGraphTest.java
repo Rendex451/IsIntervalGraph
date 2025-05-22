@@ -277,4 +277,16 @@ class IntervalGraphCheckTest {
         Graph graph = loadGraph("Test_15.json");
         assertThat(check.run(graph)).isEqualTo(false);
     }
+
+    @Test
+    void run_Test17_ReturnsTrue() throws Exception {
+        Graph graph = loadGraph("ForOther.json");
+        assertThat(check.run(graph)).isEqualTo(false);
+    }
+
+    @Test
+    void run_Test18_ReturnsTrue() throws Exception {
+        Graph graph = loadGraph("Test_16.json");
+        assertThat(check.run(graph)).isEqualTo(false);
+    }
 }
