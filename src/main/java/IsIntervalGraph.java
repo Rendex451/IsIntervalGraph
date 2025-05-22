@@ -35,7 +35,23 @@ public class IsIntervalGraph implements GraphProperty {
         maximalCliques = orderCliquesWithLexBFS(maximalCliques);
         System.out.println("Максимальные клики после упорядочивания: " + maximalCliques);
 
-        // Шаг 5: Проверить, образуют ли клики путь
+        // Шаг 5: Построим граф клик
+        List<List<Integer>> cliqueGraph = new ArrayList<>();
+        for (int i = 0; i < maximalCliques.size(); i++) {
+            cliqueGraph.add(new ArrayList<>());
+        }
+        for (int i = 0; i < maximalCliques.size(); i++) {
+            for (int j = i + 1; j < maximalCliques.size(); j++) {
+                Set<Integer> intersection = new HashSet<>(maximalCliques.get(i));
+                intersection.retainAll(maximalCliques.get(j));
+                if (!intersection.isEmpty()) {
+                    cliqueGraph.get(i).add(j);
+                    cliqueGraph.get(j).add(i);
+                }
+            }
+        }
+
+        // Шаг 6: Проверить, образуют ли клики связное поддерево для каждой вершины
         for (Vertex v : vertices) {
             int vId = v.getId();
             List<Integer> cliques = new ArrayList<>();
@@ -45,19 +61,31 @@ public class IsIntervalGraph implements GraphProperty {
                 }
             }
             System.out.println("Вершина " + vId + " клики: " + cliques);
+            // Проверяем, что клики образуют связное поддерево
             if (!cliques.isEmpty()) {
-                int min = Collections.min(cliques);
-                int max = Collections.max(cliques);
-                for (int i = min; i <= max; i++) {
-                    if (!cliques.contains(i)) {
-                        System.out.println("Непоследовательные клики для вершины " + vId);
-                        return false; // Клики не являются последовательными
+                // Используем DFS для проверки связности
+                boolean[] visited = new boolean[maximalCliques.size()];
+                dfs(cliques.get(0), cliqueGraph, visited);
+                // Все клики, содержащие vId, должны быть посещены
+                for (int cliqueIndex : cliques) {
+                    if (!visited[cliqueIndex]) {
+                        System.out.println("Клики для вершины " + vId + " не образуют связное поддерево");
+                        return false;
                     }
                 }
             }
         }
 
         return true; // Граф является интервальным
+    }
+
+    private void dfs(int start, List<List<Integer>> cliqueGraph, boolean[] visited) {
+        visited[start] = true;
+        for (int neighbor : cliqueGraph.get(start)) {
+            if (!visited[neighbor]) {
+                dfs(neighbor, cliqueGraph, visited);
+            }
+        }
     }
 
     List<Integer> performLexBFS(Graph graph, Map<Integer, Set<Integer>> adjacencyMap) {
@@ -240,90 +268,72 @@ public class IsIntervalGraph implements GraphProperty {
     List<Set<Integer>> orderCliquesWithLexBFS(List<Set<Integer>> cliques) {
         if (cliques.isEmpty()) return new ArrayList<>();
 
-        // Инициализация меток и непосещённых клик
-        List<List<Set<Integer>>> partition = new ArrayList<>();
-        List<Set<Integer>> initialClass = new ArrayList<>(cliques);
-        partition.add(initialClass); // Начальное состояние: все клики в одном классе
-
-        Map<Integer, Set<Integer>> cliqueAdjacencyMap = new HashMap<>();
+        // Создание графа клик
+        List<List<Integer>> cliqueGraph = new ArrayList<>();
         for (int i = 0; i < cliques.size(); i++) {
-            Set<Integer> neighbors = new HashSet<>();
-            for (int j = 0; j < cliques.size(); j++) {
-                if (i != j) {
-                    Set<Integer> intersection = new HashSet<>(cliques.get(i));
-                    intersection.retainAll(cliques.get(j));
-                    if (!intersection.isEmpty()) {
-                        neighbors.add(j);
-                    }
-                }
-            }
-            cliqueAdjacencyMap.put(i, neighbors);
+            cliqueGraph.add(new ArrayList<>());
         }
-        System.out.println("Смежность клик: " + cliqueAdjacencyMap);
-
-        // Lex-BFS на кликах
-        List<Integer> cliqueOrder = new ArrayList<>();
-        Map<Integer, String> labels = new HashMap<>();
-        Set<Integer> unvisited = new HashSet<>();
         for (int i = 0; i < cliques.size(); i++) {
-            labels.put(i, "");
-            unvisited.add(i);
+            for (int j = i + 1; j < cliques.size(); j++) {
+                Set<Integer> intersection = new HashSet<>(cliques.get(i));
+                intersection.retainAll(cliques.get(j));
+                if (!intersection.isEmpty()) {
+                    cliqueGraph.get(i).add(j);
+                    cliqueGraph.get(j).add(i);
+                }
+            }
+        }
+        System.out.println("Граф клик: " + cliqueGraph);
+
+        // Выбор начальной клики: клика с вершиной с наименьшим ID
+        int startClique = 0;
+        int earliestVertex = Integer.MAX_VALUE;
+        for (int i = 0; i < cliques.size(); i++) {
+            for (int v : cliques.get(i)) {
+                if (v < earliestVertex) {
+                    earliestVertex = v;
+                    startClique = i;
+                }
+            }
         }
 
-        int iteration = 0;
-        while (!unvisited.isEmpty()) {
-            // Выбор вершины для разбиения
-            int pivot = -1;
-            String maxLabel = "";
-            for (int i : unvisited) {
-                String label = labels.get(i);
-                if (pivot == -1 || label.compareTo(maxLabel) > 0) {
-                    pivot = i;
-                    maxLabel = label;
-                }
-            }
-
-            if (pivot == -1) break;
-
-            // Удаляем pivot из непосещённых и добавляем в порядок
-            unvisited.remove(pivot);
-            cliqueOrder.add(pivot);
-            System.out.println("Выбрана клика " + pivot + ", Порядок: " + cliqueOrder);
-
-            // Обновление партиции
-            List<List<Set<Integer>>> newPartition = new ArrayList<>();
-            for (List<Set<Integer>> partitionClass : partition) {
-                List<Set<Integer>> inPivot = new ArrayList<>();
-                List<Set<Integer>> notInPivot = new ArrayList<>();
-                for (Set<Integer> clique : partitionClass) {
-                    int cliqueIndex = cliques.indexOf(clique);
-                    if (cliqueIndex == pivot || cliqueAdjacencyMap.get(pivot).contains(cliqueIndex)) {
-                        inPivot.add(clique);
-                    } else {
-                        notInPivot.add(clique);
-                    }
-                }
-                // Добавляем новые классы в порядке: сначала те, что не содержат pivot, затем те, что содержат
-                if (!notInPivot.isEmpty()) newPartition.add(notInPivot);
-                if (!inPivot.isEmpty()) newPartition.add(inPivot);
-            }
-            partition = newPartition;
-            System.out.println("Партиция после итерации " + iteration + ": " + partition);
-
-            // Обновление меток
-            for (int i : unvisited) {
-                if (cliqueAdjacencyMap.get(pivot).contains(i)) {
-                    labels.put(i, (cliques.size() - iteration) + "," + labels.get(i));
-                }
-            }
-            iteration++;
-        }
-
-        // Формирование упорядоченного списка клик
+        // Построение пути клик
         List<Set<Integer>> orderedCliques = new ArrayList<>();
-        for (int cliqueIndex : cliqueOrder) {
-            orderedCliques.add(cliques.get(cliqueIndex));
+        boolean[] visited = new boolean[cliques.size()];
+        visited[startClique] = true;
+        orderedCliques.add(cliques.get(startClique));
+
+        // Добавляем клики, пересекающиеся с последней добавленной
+        while (orderedCliques.size() < cliques.size()) {
+            int lastCliqueIndex = cliques.indexOf(orderedCliques.get(orderedCliques.size() - 1));
+            Set<Integer> lastClique = cliques.get(lastCliqueIndex);
+            boolean added = false;
+
+            // Ищем вершину, которая есть в последней клике, и добавляем клику, содержащую эту вершину
+            for (int v : lastClique) {
+                for (int neighbor : cliqueGraph.get(lastCliqueIndex)) {
+                    if (!visited[neighbor] && cliques.get(neighbor).contains(v)) {
+                        visited[neighbor] = true;
+                        orderedCliques.add(cliques.get(neighbor));
+                        added = true;
+                        break;
+                    }
+                }
+                if (added) break;
+            }
+
+            if (!added) {
+                // Если не нашли пересекающуюся клику, ищем любую непосещённую
+                for (int i = 0; i < cliques.size(); i++) {
+                    if (!visited[i]) {
+                        visited[i] = true;
+                        orderedCliques.add(cliques.get(i));
+                        break;
+                    }
+                }
+            }
         }
+
         System.out.println("Упорядоченные клики: " + orderedCliques);
         return orderedCliques;
     }
