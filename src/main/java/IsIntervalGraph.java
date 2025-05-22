@@ -29,148 +29,121 @@ public class IsIntervalGraph implements GraphProperty {
 
         // Шаг 3: Вычислить максимальные клики
         List<Set<Integer>> maximalCliques = computeMaximalCliques(graph, lexBFSOrder, adjacencyMap);
-        System.out.println("Максимальные клики до упорядочивания: " + maximalCliques);
+        System.out.println("Максимальные клики: " + maximalCliques);
 
-        // Шаг 4: Упорядочить клики с помощью Lex-BFS
-        maximalCliques = orderCliquesWithLexBFS(maximalCliques);
-        System.out.println("Максимальные клики после упорядочивания: " + maximalCliques);
-
-        // Шаг 5: Построим граф клик
-        List<List<Integer>> cliqueGraph = new ArrayList<>();
-        for (int i = 0; i < maximalCliques.size(); i++) {
-            cliqueGraph.add(new ArrayList<>());
-        }
-        for (int i = 0; i < maximalCliques.size(); i++) {
-            for (int j = i + 1; j < maximalCliques.size(); j++) {
-                Set<Integer> intersection = new HashSet<>(maximalCliques.get(i));
-                intersection.retainAll(maximalCliques.get(j));
-                if (!intersection.isEmpty()) {
-                    cliqueGraph.get(i).add(j);
-                    cliqueGraph.get(j).add(i);
-                }
-            }
-        }
-        System.out.println("Граф клик: " + cliqueGraph);
-
-        // Шаг 6: Проверить, образуют ли клики связное поддерево для каждой вершины
-        for (Vertex v : vertices) {
-            int vId = v.getId();
-            List<Integer> cliques = new ArrayList<>();
-            for (int i = 0; i < maximalCliques.size(); i++) {
-                if (maximalCliques.get(i).contains(vId)) {
-                    cliques.add(i);
-                }
-            }
-            System.out.println("Вершина " + vId + " клики: " + cliques);
-            // Проверяем, что клики образуют связное поддерево
-            if (!cliques.isEmpty()) {
-                // Создаём подграф клик, содержащий только клики с vId
-                List<List<Integer>> subCliqueGraph = new ArrayList<>();
-                for (int i = 0; i < maximalCliques.size(); i++) {
-                    subCliqueGraph.add(new ArrayList<>());
-                }
-                for (int i : cliques) {
-                    for (int j : cliques) {
-                        if (i < j && cliqueGraph.get(i).contains(j)) {
-                            subCliqueGraph.get(i).add(j);
-                            subCliqueGraph.get(j).add(i);
-                        }
-                    }
-                }
-                // Проверяем связность подграфа
-                boolean[] visited = new boolean[maximalCliques.size()];
-                dfs(cliques.get(0), subCliqueGraph, visited);
-                for (int cliqueIndex : cliques) {
-                    if (!visited[cliqueIndex]) {
-                        System.out.println("Клики для вершины " + vId + " не образуют связное поддерево");
-                        return false;
-                    }
-                }
-            }
+        // Шаг 4: Проверить последовательность клик
+        if (!checkConsecutiveCliques(maximalCliques, vertices)) {
+            System.out.println("Клики не образуют последовательный порядок");
+            return false;
         }
 
         return true; // Граф является интервальным
     }
 
-    private void dfs(int start, List<List<Integer>> cliqueGraph, boolean[] visited) {
-        visited[start] = true;
-        for (int neighbor : cliqueGraph.get(start)) {
-            if (!visited[neighbor]) {
-                dfs(neighbor, cliqueGraph, visited);
-            }
-        }
-    }
-
-    List<Integer> performLexBFS(Graph graph, Map<Integer, Set<Integer>> adjacencyMap) {
-        List<Integer> order = new ArrayList<>();
-        List<Vertex> vertices = graph.getVertexList();
-        if (vertices.isEmpty()) {
-            return order; // Обработка пустого графа
-        }
-
-        // Инициализация меток и непосещённых вершин
-        Map<Integer, String> labels = new HashMap<>();
-        Set<Integer> unvisited = new HashSet<>();
-        for (Vertex v : vertices) {
-            int vId = v.getId();
-            labels.put(vId, ""); // Пустая строка как начальная метка
-            unvisited.add(vId);
-        }
-
-        // Обработка вершин
-        for (int i = 0; i < vertices.size(); i++) {
-            // Выбор вершины с лексикографически наибольшей меткой
-            int maxVertex = -1;
-            String maxLabel = "";
-            for (int v : unvisited) {
-                String label = labels.get(v);
-                if (maxVertex == -1 || label.compareTo(maxLabel) > 0) {
-                    maxVertex = v;
-                    maxLabel = label;
+    private boolean checkConsecutiveCliques(List<Set<Integer>> cliques, List<Vertex> vertices) {
+        for (Vertex vertex : vertices) {
+            int vId = vertex.getId();
+            List<Integer> cliqueIndices = new ArrayList<>();
+            for (int i = 0; i < cliques.size(); i++) {
+                if (cliques.get(i).contains(vId)) {
+                    cliqueIndices.add(i);
                 }
             }
-
-            if (maxVertex == -1) break;
-
-            // Добавление в порядок и удаление из непосещённых
-            order.add(maxVertex);
-            unvisited.remove(maxVertex);
-            System.out.println("Выбрана вершина: " + maxVertex + ", Порядок: " + order);
-
-            // Обновление меток соседей
-            for (int u : unvisited) {
-                if (adjacencyMap.get(maxVertex).contains(u)) {
-                    labels.put(u, (vertices.size() - i) + "," + labels.get(u));
+            if (!cliqueIndices.isEmpty()) {
+                int minIndex = Collections.min(cliqueIndices);
+                int maxIndex = Collections.max(cliqueIndices);
+                for (int i = minIndex; i <= maxIndex; i++) {
+                    if (!cliqueIndices.contains(i)) {
+                        System.out.println("Вершина " + vId + " имеет непоследовательные клики: " + cliqueIndices);
+                        return false;
+                    }
                 }
             }
         }
-
-        System.out.println("Порядок Lex-BFS: " + order);
-        return order;
+        return true;
     }
 
-    boolean isPerfectEliminationOrder(Graph graph, List<Integer> order, Map<Integer, Set<Integer>> adjacencyMap) {
-        int n = graph.getVertexList().size();
-        for (int i = 0; i < n; i++) {
-            int v = order.get(i);
-            List<Integer> rightNeighbors = new ArrayList<>();
-            for (int j = i + 1; j < n; j++) {
+    private List<Set<Integer>> computeMaximalCliques(Graph graph, List<Integer> order, Map<Integer, Set<Integer>> adjacencyMap) {
+        Map<Integer, List<Integer>> rightNeighbors = new HashMap<>();
+        Map<Integer, Integer> parent = new HashMap<>();
+        Map<Integer, List<Integer>> children = new HashMap<>();
+        Map<Integer, List<Integer>> rightNeighborsNoParent = new HashMap<>();
+
+        for (Integer v : order) {
+            children.put(v, new ArrayList<>());
+        }
+
+        for (int i = 0; i < order.size() - 1; i++) {
+            int vertex = order.get(i);
+            List<Integer> rn = new ArrayList<>();
+            for (int j = i + 1; j < order.size(); j++) {
                 int u = order.get(j);
-                if (adjacencyMap.get(v).contains(u)) {
+                if (adjacencyMap.get(vertex).contains(u)) {
+                    rn.add(u);
+                }
+            }
+            rightNeighbors.put(vertex, rn);
+            rightNeighborsNoParent.put(vertex, new ArrayList<>());
+            if (!rn.isEmpty()) {
+                parent.put(vertex, rn.get(0));
+                children.get(rn.get(0)).add(vertex);
+                for (int k = 1; k < rn.size(); k++) {
+                    rightNeighborsNoParent.get(vertex).add(rn.get(k));
+                }
+            }
+        }
+        rightNeighbors.put(order.get(order.size() - 1), new ArrayList<>());
+
+        List<Set<Integer>> cliques = new ArrayList<>();
+        Map<Integer, Set<Integer>> cliqueMap = new HashMap<>();
+        cliqueMap.put(order.get(order.size() - 1), new HashSet<>(Collections.singletonList(order.get(order.size() - 1))));
+        generateCliques(order.get(order.size() - 1), children, cliqueMap, rightNeighbors, cliques);
+
+        return cliques;
+    }
+
+    private void generateCliques(Integer node, Map<Integer, List<Integer>> children, Map<Integer, Set<Integer>> cliqueMap,
+                                 Map<Integer, List<Integer>> rightNeighbors, List<Set<Integer>> cliques) {
+        for (Integer child : children.get(node)) {
+            Set<Integer> clique = new HashSet<>(rightNeighbors.get(child));
+            clique.add(child);
+            cliqueMap.put(child, clique);
+
+            Integer parent = rightNeighbors.get(child).isEmpty() ? null : rightNeighbors.get(child).get(0);
+            if (parent != null && cliqueMap.get(parent) != null && clique.containsAll(cliqueMap.get(parent))) {
+                cliques.remove(cliqueMap.get(parent));
+            }
+
+            if (!cliques.contains(clique)) {
+                cliques.add(clique);
+            }
+
+            if (!children.get(child).isEmpty()) {
+                generateCliques(child, children, cliqueMap, rightNeighbors, cliques);
+            }
+        }
+    }
+
+    private boolean isPerfectEliminationOrder(Graph graph, List<Integer> order, Map<Integer, Set<Integer>> adjacencyMap) {
+        for (int i = 0; i < order.size(); i++) {
+            int vertex = order.get(i);
+            List<Integer> rightNeighbors = new ArrayList<>();
+            for (int j = i + 1; j < order.size(); j++) {
+                int u = order.get(j);
+                if (adjacencyMap.get(vertex).contains(u)) {
                     rightNeighbors.add(u);
                 }
             }
-            System.out.println("Вершина " + v + " правые соседи: " + rightNeighbors);
-            if (rightNeighbors.size() <= 1) continue; // Одна или ноль вершин — тривиально клика
-            // Проверяем, что правые соседи образуют клику
+            System.out.println("Вершина " + vertex + " правые соседи: " + rightNeighbors);
+            if (rightNeighbors.size() <= 1) continue;
             for (int j = 0; j < rightNeighbors.size(); j++) {
+                int u1 = rightNeighbors.get(j);
                 for (int k = j + 1; k < rightNeighbors.size(); k++) {
-                    int u1 = rightNeighbors.get(j);
                     int u2 = rightNeighbors.get(k);
                     if (!adjacencyMap.get(u1).contains(u2)) {
-                        // Проверяем наличие C4
-                        if (checkForInducedC4(graph, v, u1, u2, adjacencyMap)) {
-                            System.out.println("Найден C4 с вершинами " + v + ", " + u1 + ", " + u2);
+                        System.out.println("Правые соседи вершины " + vertex + " (" + u1 + ", " + u2 + ") не связаны");
+                        if (checkForInducedC4(graph, vertex, u1, u2, adjacencyMap)) {
+                            System.out.println("Найден индуцированный C4 с вершинами " + vertex + ", " + u1 + ", " + u2);
                             return false;
                         }
                     }
@@ -180,172 +153,42 @@ public class IsIntervalGraph implements GraphProperty {
         return true;
     }
 
-    boolean checkForInducedC4(Graph graph, int v, int u1, int u2, Map<Integer, Set<Integer>> adjacencyMap) {
+    private boolean checkForInducedC4(Graph graph, int v, int u1, int u2, Map<Integer, Set<Integer>> adjacencyMap) {
+        Set<Integer> vertices = new HashSet<>(Arrays.asList(v, u1, u2));
         for (Vertex wVertex : graph.getVertexList()) {
             int w = wVertex.getId();
-            if (w == v || w == u1 || w == u2) continue;
+            if (vertices.contains(w)) continue;
             Set<Integer> wNeighbors = adjacencyMap.get(w);
-            // Проверяем, образует ли w цикл C4: v -> u1 -> w -> u2 -> v
             if (wNeighbors.contains(u1) && wNeighbors.contains(u2) && !wNeighbors.contains(v)) {
-                // Проверяем, что нет дополнительных рёбер (например, v-w или u1-u2)
-                if (!adjacencyMap.get(u1).contains(u2)) {
-                    return true; // Найден C4
+                // Проверяем цикл v-u1-w-u2-v
+                Set<Integer> cycleVertices = new HashSet<>(Arrays.asList(v, u1, w, u2));
+                boolean hasChord = false;
+                // Проверяем прямые хорды
+                if (adjacencyMap.get(v).contains(w) || adjacencyMap.get(u1).contains(u2)) {
+                    hasChord = true;
+                }
+                // Проверяем треугольники, создающие хорды
+                for (Vertex xVertex : graph.getVertexList()) {
+                    int x = xVertex.getId();
+                    if (cycleVertices.contains(x)) continue;
+                    Set<Integer> xNeighbors = adjacencyMap.get(x);
+                    if (xNeighbors.contains(v) && xNeighbors.contains(u1) && xNeighbors.contains(w)) {
+                        hasChord = true; // Хорда в треугольнике v-u1-w
+                    } else if (xNeighbors.contains(v) && xNeighbors.contains(u2) && xNeighbors.contains(w)) {
+                        hasChord = true; // Хорда в треугольнике v-u2-w
+                    } else if (xNeighbors.contains(u1) && xNeighbors.contains(w) && xNeighbors.contains(u2)) {
+                        hasChord = true; // Хорда в треугольнике u1-w-u2
+                    }
+                }
+                if (!hasChord) {
+                    return true; // Найден индуцированный C4
                 }
             }
         }
         return false;
     }
 
-    List<Set<Integer>> computeMaximalCliques(Graph graph, List<Integer> order, Map<Integer, Set<Integer>> adjacencyMap) {
-        List<Set<Integer>> candidateCliques = new ArrayList<>();
-        int n = graph.getVertexList().size();
-
-        for (int i = 0; i < n; i++) {
-            int v = order.get(i);
-            Set<Integer> clique = new HashSet<>();
-            clique.add(v);
-            Set<Integer> candidates = new HashSet<>();
-            for (int j = i + 1; j < n; j++) {
-                int u = order.get(j);
-                if (adjacencyMap.get(v).contains(u)) {
-                    candidates.add(u);
-                }
-            }
-            generateCliques(clique, candidates, candidateCliques, adjacencyMap);
-        }
-
-        List<Set<Integer>> maximalCliques = new ArrayList<>();
-        for (Set<Integer> clique : candidateCliques) {
-            boolean isMaximal = true;
-            for (Vertex vertex : graph.getVertexList()) {
-                int w = vertex.getId();
-                if (!clique.contains(w)) {
-                    boolean canExtend = true;
-                    for (int u : clique) {
-                        if (!adjacencyMap.get(w).contains(u)) {
-                            canExtend = false;
-                            break;
-                        }
-                    }
-                    if (canExtend) {
-                        isMaximal = false;
-                        break;
-                    }
-                }
-            }
-            if (isMaximal && !maximalCliques.contains(clique)) {
-                maximalCliques.add(clique);
-            }
-        }
-
-        System.out.println("Кандидаты на клики: " + candidateCliques);
-        System.out.println("Максимальные клики после фильтрации: " + maximalCliques);
-        return maximalCliques;
-    }
-
-    void generateCliques(Set<Integer> clique, Set<Integer> candidates, List<Set<Integer>> candidateCliques, Map<Integer, Set<Integer>> adjacencyMap) {
-        boolean isValidClique = true;
-        for (int u : clique) {
-            for (int v : clique) {
-                if (u != v && !adjacencyMap.get(u).contains(v)) {
-                    isValidClique = false;
-                    break;
-                }
-            }
-            if (!isValidClique) break;
-        }
-        if (isValidClique && !candidateCliques.contains(clique)) {
-            candidateCliques.add(new HashSet<>(clique));
-        } else {
-            return;
-        }
-
-        for (int u : new HashSet<>(candidates)) {
-            Set<Integer> newClique = new HashSet<>(clique);
-            newClique.add(u);
-            Set<Integer> newCandidates = new HashSet<>();
-            for (int w : candidates) {
-                if (w != u && adjacencyMap.get(u).contains(w)) {
-                    newCandidates.add(w);
-                }
-            }
-            generateCliques(newClique, newCandidates, candidateCliques, adjacencyMap);
-        }
-    }
-
-    List<Set<Integer>> orderCliquesWithLexBFS(List<Set<Integer>> cliques) {
-        if (cliques.isEmpty()) return new ArrayList<>();
-
-        List<List<Integer>> cliqueGraph = new ArrayList<>();
-        for (int i = 0; i < cliques.size(); i++) {
-            cliqueGraph.add(new ArrayList<>());
-        }
-        for (int i = 0; i < cliques.size(); i++) {
-            for (int j = i + 1; j < cliques.size(); j++) {
-                Set<Integer> intersection = new HashSet<>(cliques.get(i));
-                intersection.retainAll(cliques.get(j));
-                if (!intersection.isEmpty()) {
-                    cliqueGraph.get(i).add(j);
-                    cliqueGraph.get(j).add(i);
-                }
-            }
-        }
-        System.out.println("Граф клик: " + cliqueGraph);
-
-        int startClique = 0;
-        int earliestVertex = Integer.MAX_VALUE;
-        for (int i = 0; i < cliques.size(); i++) {
-            for (int v : cliques.get(i)) {
-                if (v < earliestVertex) {
-                    earliestVertex = v;
-                    startClique = i;
-                }
-            }
-        }
-
-        List<Set<Integer>> orderedCliques = new ArrayList<>();
-        boolean[] visited = new boolean[cliques.size()];
-        visited[startClique] = true;
-        orderedCliques.add(cliques.get(startClique));
-
-        Queue<Integer> queue = new LinkedList<>();
-        queue.add(startClique);
-
-        while (!queue.isEmpty()) {
-            int currentCliqueIndex = queue.poll();
-            Set<Integer> currentClique = cliques.get(currentCliqueIndex);
-
-            List<Integer> neighbors = new ArrayList<>();
-            for (int neighbor : cliqueGraph.get(currentCliqueIndex)) {
-                if (!visited[neighbor]) {
-                    neighbors.add(neighbor);
-                }
-            }
-
-            neighbors.sort((a, b) -> {
-                Set<Integer> intersectionA = new HashSet<>(cliques.get(a));
-                intersectionA.retainAll(currentClique);
-                Set<Integer> intersectionB = new HashSet<>(cliques.get(b));
-                intersectionB.retainAll(currentClique);
-                int minVertexA = intersectionA.stream().min(Integer::compare).orElse(Integer.MAX_VALUE);
-                int minVertexB = intersectionB.stream().min(Integer::compare).orElse(Integer.MAX_VALUE);
-                return Integer.compare(minVertexA, minVertexB);
-            });
-
-            for (int neighbor : neighbors) {
-                if (!visited[neighbor]) {
-                    visited[neighbor] = true;
-                    orderedCliques.add(cliques.get(neighbor));
-                    queue.add(neighbor);
-                }
-            }
-        }
-
-        System.out.println("Упорядоченные клики: " + orderedCliques);
-        return orderedCliques;
-    }
-
-    Map<Integer, Set<Integer>> buildAdjacencyMap(Graph graph) {
+    private Map<Integer, Set<Integer>> buildAdjacencyMap(Graph graph) {
         Map<Integer, Set<Integer>> adjacencyMap = new HashMap<>();
         if (graph.getVertexList() == null || graph.getVertexList().isEmpty()) {
             return adjacencyMap;
@@ -358,7 +201,7 @@ public class IsIntervalGraph implements GraphProperty {
         return adjacencyMap;
     }
 
-    Set<Integer> getNeighbours(Graph graph, int vertexId) {
+    private Set<Integer> getNeighbours(Graph graph, int vertexId) {
         Set<Integer> neighbours = new HashSet<>();
         for (Edge edge : graph.getEdgeList()) {
             if (edge.getSource() == vertexId) {
@@ -368,5 +211,53 @@ public class IsIntervalGraph implements GraphProperty {
             }
         }
         return neighbours;
+    }
+
+    private boolean subsetOf(Set<Integer> subset, Set<Integer> set) {
+        if (subset.isEmpty()) return true;
+        return set.containsAll(subset);
+    }
+
+    List<Integer> performLexBFS(Graph graph, Map<Integer, Set<Integer>> adjacencyMap) {
+        List<Integer> order = new ArrayList<>();
+        List<Vertex> vertices = graph.getVertexList();
+        if (vertices.isEmpty()) {
+            return order;
+        }
+
+        Map<Integer, String> labels = new HashMap<>();
+        Set<Integer> unvisited = new HashSet<>();
+        for (Vertex v : vertices) {
+            int vId = v.getId();
+            labels.put(vId, "");
+            unvisited.add(vId);
+        }
+
+        for (int i = 0; i < vertices.size(); i++) {
+            int maxVertex = -1;
+            String maxLabel = "";
+            for (int v : unvisited) {
+                String label = labels.get(v);
+                if (maxVertex == -1 || label.compareTo(maxLabel) > 0) {
+                    maxVertex = v;
+                    maxLabel = label;
+                }
+            }
+
+            if (maxVertex == -1) break;
+
+            order.add(maxVertex);
+            unvisited.remove(maxVertex);
+            System.out.println("Выбрана вершина: " + maxVertex + ", Порядок: " + order);
+
+            for (int u : unvisited) {
+                if (adjacencyMap.get(maxVertex).contains(u)) {
+                    labels.put(u, (vertices.size() - i) + "," + labels.get(u));
+                }
+            }
+        }
+
+        System.out.println("Порядок Lex-BFS: " + order);
+        return order;
     }
 }
