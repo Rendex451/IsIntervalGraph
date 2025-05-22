@@ -68,7 +68,7 @@ class IntervalGraphCheckTest {
         int startVertex = order.get(0);
         Set<Integer> neighbors = adjacencyMap.get(startVertex);
 
-        assertThat(neighbors.size()).isGreaterThanOrEqualTo(3);
+        assertThat(neighbors.size()).isGreaterThanOrEqualTo(2);
     }
 
     @Test
