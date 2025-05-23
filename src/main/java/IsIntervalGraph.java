@@ -66,14 +66,14 @@ public class IsIntervalGraph implements GraphProperty {
         return true;
     }
 
-    private boolean isConsecutive(List<Integer> list) {
+    boolean isConsecutive(List<Integer> list) {
         if (list.isEmpty()) return true;
         int min = Collections.min(list);
         int max = Collections.max(list);
         return max - min + 1 == list.size(); // Проверка, что нет пропусков
     }
 
-    private List<Integer> getCliquePathOrder(List<Set<Integer>> cliques) {
+    List<Integer> getCliquePathOrder(List<Set<Integer>> cliques) {
         if (cliques.size() <= 2) {
             List<Integer> path = new ArrayList<>();
             for (int i = 0; i < cliques.size(); i++) path.add(i);
@@ -149,10 +149,6 @@ public class IsIntervalGraph implements GraphProperty {
 
         return null; // Нет подходящего пути
     }
-    private boolean isCliqueTreePath(List<Set<Integer>> cliques) {
-        return getCliquePathOrder(cliques) != null;
-    }
-
     private void bfs(int start, List<List<Integer>> graph, boolean[] visited) {
         Queue<Integer> queue = new LinkedList<>();
         queue.add(start);
@@ -168,7 +164,7 @@ public class IsIntervalGraph implements GraphProperty {
         }
     }
 
-    private List<Set<Integer>> computeMaximalCliques(Graph graph, List<Integer> order, Map<Integer, Set<Integer>> adjacencyMap) {
+    List<Set<Integer>> computeMaximalCliques(Graph graph, List<Integer> order, Map<Integer, Set<Integer>> adjacencyMap) {
         Map<Integer, List<Integer>> rightNeighbors = new HashMap<>();
         Map<Integer, Integer> parent = new HashMap<>();
         Map<Integer, List<Integer>> children = new HashMap<>();
@@ -229,7 +225,7 @@ public class IsIntervalGraph implements GraphProperty {
         }
     }
 
-    private boolean isPerfectEliminationOrder(Graph graph, List<Integer> order, Map<Integer, Set<Integer>> adjacencyMap) {
+    boolean isPerfectEliminationOrder(Graph graph, List<Integer> order, Map<Integer, Set<Integer>> adjacencyMap) {
         for (int i = 0; i < order.size(); i++) {
             int vertex = order.get(i);
             List<Integer> rightNeighbors = new ArrayList<>();
@@ -293,7 +289,7 @@ public class IsIntervalGraph implements GraphProperty {
         return false;
     }
 
-    private Map<Integer, Set<Integer>> buildAdjacencyMap(Graph graph) {
+    Map<Integer, Set<Integer>> buildAdjacencyMap(Graph graph) {
         Map<Integer, Set<Integer>> adjacencyMap = new HashMap<>();
         if (graph.getVertexList() == null || graph.getVertexList().isEmpty()) {
             return adjacencyMap;
@@ -306,7 +302,7 @@ public class IsIntervalGraph implements GraphProperty {
         return adjacencyMap;
     }
 
-    private Set<Integer> getNeighbours(Graph graph, int vertexId) {
+    Set<Integer> getNeighbours(Graph graph, int vertexId) {
         Set<Integer> neighbours = new HashSet<>();
         for (Edge edge : graph.getEdgeList()) {
             if (edge.getSource() == vertexId) {
@@ -318,12 +314,7 @@ public class IsIntervalGraph implements GraphProperty {
         return neighbours;
     }
 
-    private boolean subsetOf(Set<Integer> subset, Set<Integer> set) {
-        if (subset.isEmpty()) return true;
-        return set.containsAll(subset);
-    }
-
-    private List<Integer> performLexBFS(Graph graph, Map<Integer, Set<Integer>> adjacencyMap) {
+    List<Integer> performLexBFS(Graph graph, Map<Integer, Set<Integer>> adjacencyMap) {
         List<Integer> order = new ArrayList<>();
         List<Vertex> vertices = graph.getVertexList();
         if (vertices.isEmpty()) {
